@@ -23,6 +23,23 @@ object RadarEngine {
 
     fun spawnPlayer(id: Long, name: String, x: Float, y: Float, z: Float) {
         players[id] = PlayerInfo(id, name, x, y, z)
+        
+        // Если локальный игрок неизвестен, проверяем, может это он заспавнился
+        if (localPlayerId == null) {
+            val dx = x - localX
+            val dy = y - localY
+            val dz = z - localZ
+            val dist = Math.sqrt((dx*dx + dy*dy + dz*dz).toDouble()).toFloat()
+            if (dist < 5.0f) {
+                localPlayerId = id
+            }
+        }
+    }
+
+    fun updateLocalPosition(x: Float, y: Float, z: Float) {
+        localX = x
+        localY = y
+        localZ = z
     }
 
     fun updatePlayerPosition(id: Long, x: Float, y: Float, z: Float) {
@@ -34,13 +51,6 @@ object RadarEngine {
             player.lastUpdate = System.currentTimeMillis()
         } else {
             players[id] = PlayerInfo(id, "Player_$id", x, y, z)
-        }
-
-        if (localPlayerId == null) localPlayerId = id
-        if (id == localPlayerId) {
-            localX = x
-            localY = y
-            localZ = z
         }
     }
 
@@ -72,5 +82,8 @@ object RadarEngine {
     fun clear() {
         players.clear()
         localPlayerId = null
+        localX = 0f
+        localY = 0f
+        localZ = 0f
     }
 }
