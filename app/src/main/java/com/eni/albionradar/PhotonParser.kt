@@ -10,12 +10,19 @@ object PhotonParser {
     private const val OP_LEAVE = 4
     private const val OP_HEALTH_UPDATE = 17
 
+    private const val EV_MOVE = 7
+    private const val EV_SPAWN = 0
+    private const val EV_LEAVE = 1
+    private const val EV_HEALTH = 4
+
     private const val PARAM_POSITION = 3
     private const val PARAM_USER_ID = 1
     private const val PARAM_OBJECT_ID = 0
     private const val PARAM_NAME = 2
     private const val PARAM_HEALTH = 6
     private const val PARAM_MAX_HEALTH = 7
+
+    var packetsParsed = 0
 
     fun parse(payload: ByteArray, srcPort: Int, dstPort: Int) {
         try {
@@ -24,41 +31,45 @@ object PhotonParser {
             val buf = ByteBuffer.wrap(payload)
             buf.order(ByteOrder.BIG_ENDIAN)
 
+            // Photon header is 12 bytes
             val commandCount = buf.get(3).toInt() and 0xFF
-
             buf.position(12)
 
             for (i in 0 until commandCount) {
-                if (buf.remaining() < 8) break
+                if (buf.remaining() < 12) break
                 parseCommand(buf)
             }
         } catch (_: Exception) {}
     }
 
     private fun parseCommand(buf: ByteBuffer) {
+        val startPos = buf.position()
         val commandType = buf.get().toInt() and 0xFF
-        buf.get()
-        val flags = buf.get().toInt() and 0xFF
-        val commandSize = buf.short.toInt() and 0xFFFF
+        buf.get() // channel id
+        buf.get() // flags
+        buf.get() // reserved
+        val commandSize = buf.int // 4 bytes for size
 
-        if (commandSize < 8 || commandSize > buf.remaining() + 8) {
+        if (commandSize < 12 || commandSize > buf.remaining() + 12) {
             buf.position(buf.limit())
             return
         }
 
-        val endPos = buf.position() + commandSize - 8
+        val endPos = startPos + commandSize
 
         when (commandType) {
-            4 -> parseReliableCommand(buf, endPos)
-            else -> buf.position(endPos)
+            4, 5 -> { // Reliable, Unreliable
+                buf.int // sequence number
+                parsePayload(buf, endPos)
+            }
         }
+        
+        buf.position(endPos)
     }
 
-    private fun parseReliableCommand(buf: ByteBuffer, endPos: Int) {
-        buf.int
-
+    private fun parsePayload(buf: ByteBuffer, endPos: Int) {
         if (buf.position() >= endPos) return
-        if (endPos - buf.position() < 4) return
+        if (endPos - buf.position() < 2) return
 
         val opCode = buf.get().toInt() and 0xFF
         val paramCount = buf.get().toInt() and 0xFF
@@ -72,8 +83,8 @@ object PhotonParser {
             }
         }
 
+        packetsParsed++
         processOperation(opCode, params)
-        buf.position(endPos)
     }
 
     private fun parseParameter(buf: ByteBuffer, endPos: Int): Pair<Int, Any>? {
@@ -91,9 +102,17 @@ object PhotonParser {
             5 -> buf.float
             6 -> buf.double
             7 -> readString(buf, endPos)
-            8 -> readVector3(buf)
-            9 -> readLongArray(buf, endPos)
-            10 -> readByteArray(buf, endPos)
+            8 -> readByteArray(buf, endPos)
+            10, 11, 12, 13 -> { // Custom Types (Albion Vector3)
+                val customTypeCode = buf.get().toInt() and 0xFF
+                val length = buf.short.toInt() and 0xFFFF
+                if (length == 12) {
+                    readVector3(buf)
+                } else {
+                    buf.position(buf.position() + length)
+                    null
+                }
+            }
             else -> { buf.position(endPos); null }
         }
 
@@ -114,15 +133,6 @@ object PhotonParser {
         return floatArrayOf(buf.float, buf.float, buf.float)
     }
 
-    private fun readLongArray(buf: ByteBuffer, endPos: Int): LongArray? {
-        if (buf.position() + 2 > endPos) return null
-        val count = buf.short.toInt() and 0xFFFF
-        if (count <= 0 || buf.position() + count * 8 > endPos) return null
-        val arr = LongArray(count)
-        for (i in 0 until count) arr[i] = buf.long
-        return arr
-    }
-
     private fun readByteArray(buf: ByteBuffer, endPos: Int): ByteArray? {
         if (buf.position() + 2 > endPos) return null
         val length = buf.short.toInt() and 0xFFFF
@@ -136,24 +146,31 @@ object PhotonParser {
         when (opCode) {
             OP_MOVE -> {
                 val pos = params[PARAM_POSITION] as? FloatArray
-                val userId = params[PARAM_USER_ID] as? Long
+                if (pos != null) {
+                    // Это движение локального игрока (клиент -> сервер)
+                    RadarEngine.updateLocalPosition(pos[0], pos[1], pos[2])
+                }
+            }
+            EV_MOVE -> {
+                val pos = params[PARAM_POSITION] as? FloatArray
+                val userId = params[PARAM_USER_ID] as? Long ?: (params[PARAM_OBJECT_ID] as? Int)?.toLong()
                 if (pos != null && userId != null) {
                     RadarEngine.updatePlayerPosition(userId, pos[0], pos[1], pos[2])
                 }
             }
-            OP_SERVER_SPAWN -> {
-                val userId = params[PARAM_USER_ID] as? Long
+            OP_SERVER_SPAWN, EV_SPAWN -> {
+                val userId = params[PARAM_USER_ID] as? Long ?: (params[PARAM_OBJECT_ID] as? Int)?.toLong()
                 val name = params[PARAM_NAME] as? String
                 val pos = params[PARAM_POSITION] as? FloatArray
                 if (userId != null) {
-                    RadarEngine.spawnPlayer(userId, name ?: "Unknown", pos?.get(0) ?: 0f, pos?.get(1) ?: 0f, pos?.get(2) ?: 0f)
+                    RadarEngine.spawnPlayer(userId, name ?: "Player", pos?.get(0) ?: 0f, pos?.get(1) ?: 0f, pos?.get(2) ?: 0f)
                 }
             }
-            OP_LEAVE -> {
-                val userId = params[PARAM_USER_ID] as? Long
+            OP_LEAVE, EV_LEAVE -> {
+                val userId = params[PARAM_USER_ID] as? Long ?: (params[PARAM_OBJECT_ID] as? Int)?.toLong()
                 if (userId != null) RadarEngine.removePlayer(userId)
             }
-            OP_HEALTH_UPDATE -> {
+            OP_HEALTH_UPDATE, EV_HEALTH -> {
                 val userId = params[PARAM_USER_ID] as? Long
                 val health = params[PARAM_HEALTH] as? Int
                 val maxHealth = params[PARAM_MAX_HEALTH] as? Int
