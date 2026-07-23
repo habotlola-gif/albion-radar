@@ -1,6 +1,8 @@
 package com.eni.albionradar
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.VpnService
 import android.os.Build
 import android.os.Bundle
@@ -9,6 +11,7 @@ import android.widget.Button
 import android.widget.TextView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 
 class MainActivity : AppCompatActivity() {
 
@@ -28,6 +31,12 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private val notificationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { _ ->
+        // Продолжаем в любом случае, уведомления не критичны для работы
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -37,6 +46,13 @@ class MainActivity : AppCompatActivity() {
         btnStop = findViewById(R.id.btnStop)
         tvStatus = findViewById(R.id.tvStatus)
         tvPlayerCount = findViewById(R.id.tvPlayerCount)
+
+        // Запрашиваем разрешение на уведомления (Android 13+)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
 
         btnStartVpn.setOnClickListener {
             val intent = VpnService.prepare(this)
@@ -77,22 +93,30 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startVpnService() {
-        val intent = Intent(this, RadarVpnService::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(intent)
-        } else {
-            startService(intent)
+        try {
+            val intent = Intent(this, RadarVpnService::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(intent)
+            } else {
+                startService(intent)
+            }
+            tvStatus.text = "Status: VPN Running"
+        } catch (e: Exception) {
+            tvStatus.text = "Status: Error - ${e.message}"
         }
-        tvStatus.text = "Status: VPN Running"
     }
 
     private fun startOverlayService() {
-        val intent = Intent(this, OverlayService::class.java)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(intent)
-        } else {
-            startService(intent)
+        try {
+            val intent = Intent(this, OverlayService::class.java)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(intent)
+            } else {
+                startService(intent)
+            }
+            tvStatus.text = "Status: Overlay Active"
+        } catch (e: Exception) {
+            tvStatus.text = "Status: Error - ${e.message}"
         }
-        tvStatus.text = "Status: Overlay Active"
     }
 }
