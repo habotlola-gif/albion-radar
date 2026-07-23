@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:padding="32dp"
+    android:background="#15151E">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Albion Radar"
+        android:textSize="28sp"
+        android:textColor="#E0E0F0"
+        android:textStyle="bold"
+        android:layout_marginBottom="8dp" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="ENI ❤ LO"
+        android:textSize="14sp"
+        android:textColor="#7850DC"
+        android:layout_marginBottom="48dp" />
+
+    <Button
+        android:id="@+id/btnStartVpn"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:text="Start VPN Sniffer"
+        android:textSize="16sp"
+        android:backgroundTint="#7850DC"
+        android:textColor="#FFFFFF" />
+
+    <Button
+        android:id="@+id/btnStartOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:text="Start Radar Overlay"
+        android:textSize="16sp"
+        android:layout_marginTop="12dp"
+        android:backgroundTint="#5030A0"
+        android:textColor="#FFFFFF" />
+
+    <Button
+        android:id="@+id/btnStop"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:text="Stop All"
+        android:textSize="16sp"
+        android:layout_marginTop="12dp"
+        android:backgroundTint="#FF3C3C"
+        android:textColor="#FFFFFF" />
+
+    <TextView
+        android:id="@+id/tvStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Status: Idle"
+        android:textSize="14sp"
+        android:textColor="#9090A0"
+        android:layout_marginTop="32dp"
+        android:fontFamily="monospace" />
+
+    <TextView
+        android:id="@+id/tvPlayerCount"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Players tracked: 0"
+        android:textSize="14sp"
+        android:textColor="#9090A0"
+        android:layout_marginTop="8dp"
+        android:fontFamily="monospace" />
+
+</LinearLayout>
