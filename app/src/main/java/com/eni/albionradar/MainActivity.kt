@@ -86,7 +86,7 @@ class MainActivity : AppCompatActivity() {
             while (true) {
                 Thread.sleep(500)
                 runOnUiThread {
-                    tvPlayerCount.text = "Players tracked: ${RadarEngine.getPlayerCount()}"
+                    tvPlayerCount.text = "Players: ${RadarEngine.getPlayerCount()} | PKT: ${PhotonParser.packetsParsed}"
                 }
             }
         }.start()
