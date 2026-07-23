@@ -1,0 +1,6 @@
+<resources>
+    <style name="Theme.AlbionRadar" parent="Theme.MaterialComponents.NoActionBar">
+        <item name="android:windowBackground">#15151E</item>
+        <item name="android:statusBarColor">#0F0F16</item>
+    </style>
+</resources>
